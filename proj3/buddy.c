@@ -51,6 +51,7 @@
 typedef struct {
 	struct list_head list;
 	/* TODO: DECLARE NECESSARY MEMBER VARIABLES */
+	int index;
 } page_t;
 
 /**************************************************************************
@@ -73,16 +74,64 @@ page_t g_pages[(1<<MAX_ORDER)/PAGE_SIZE];
  * Local Functions
  **************************************************************************/
 
+ int power(int x){
+
+	 int powerTotal = 2;
+
+	 int i;
+	 for(i = 0; i < x; i++){
+		 powerTotal = powerTotal * 2;
+	 }
+	 return powerTotal;
+
+ }
+
+
+ int find_order(int size){
+
+
+
+ 	int order = MIN_ORDER;
+ 	int found = 0;
+
+ 	while(found == 0){
+ 		if(power(order) < size){
+ 			order++;
+ 		}else{
+ 			found = 1;
+ 		}
+ 	}
+
+ 	return order;
+
+ }
+
+ void splitBlock(int order, int pagesIndex){
+	 int x;
+	 for(x = pagesIndex; x > order; x--){
+		 if(!list_empty(&free_area[x])){
+			 list_del(free_area[x].next);
+		 }else{
+			 list_add(&g_pages[x].list, &free_area[x]);
+		 }
+	 }
+
+ }
+
+
 /**
  * Initialize the buddy system
  */
 void buddy_init()
 {
+
 	int i;
 	int n_pages = (1<<MAX_ORDER) / PAGE_SIZE;
 	for (i = 0; i < n_pages; i++) {
-		/* TODO: INITIALIZE PAGE STRUCTURES */
-		
+
+		g_pages[i].index = i;
+		INIT_LIST_HEAD(&g_pages[i].list);
+
 	}
 
 	/* initialize freelist */
@@ -110,9 +159,22 @@ void buddy_init()
  */
 void *buddy_alloc(int size)
 {
-	/* TODO: IMPLEMENT THIS FUNCTION */
-	return NULL;
+
+	int requiredOrder = find_order(size);
+
+		int i;
+		for(i = requiredOrder + 1; i <= MAX_ORDER; i++){
+			if(!list_empty(&free_area[i])){
+				splitBlock(requiredOrder, i);
+				return &free_area[i];
+			}
+		}
+
+		return NULL;
+
 }
+
+
 
 /**
  * Free an allocated memory block.
@@ -135,6 +197,8 @@ void buddy_free(void *addr)
  */
 void buddy_dump()
 {
+
+
 	int o;
 	for (o = MIN_ORDER; o <= MAX_ORDER; o++) {
 		struct list_head *pos;
